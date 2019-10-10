@@ -1,20 +1,30 @@
 package it.almaviva.main.democentralina;
 
+import it.almaviva.main.propertiesloeader.PropertiesLoader;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.json.JSONObject;
 
+import java.io.IOException;
+import java.util.Properties;
 import java.util.UUID;
 
 public class DemoCentralina {
 
-    private static final String BROKER_URL = "tcp://10.207.232.210:1883";
-    private static final String USERNAME = "admin";
-    private static final String PASSWORD = "SeMmqtt1!";
+    private static final String BROKER_HOST = "broker.host";
+    private static final String BROKER_PORT = "broker.port";
+    private static final String BROKER_USERNAME = "broker.username";
+    private static final String BROKER_PASSWORD = "broker.password";
+    private static final String BROKER_TOPIC_CODICE_STAZIONE = "broker.topic.codice.stazione";
+    private static final String BROKER_TOPIC_GICS_GATEWAY_PHYSICAL_ID = "broker.topic.gics.gateway.physical.id";
 
+    private static DemoCentralina demoCentralina = null;
     private MqttAsyncClient mqttClient;
+    private Properties properties;
+    private String topic;
 
-    public DemoCentralina(){
+    private DemoCentralina(Properties properties){
+        this.properties = properties;
         try {
             mqttClient = getMqttAsyncClient();
         } catch (MqttException e) {
@@ -23,8 +33,17 @@ public class DemoCentralina {
         }
     }
 
-    public void subscribe(String topic, int qos) throws MqttException {
-            this.mqttClient.setCallback(new MqttCallback() {
+    public static DemoCentralina getInstance() throws IOException {
+        if(demoCentralina == null) {
+            Properties properties = new PropertiesLoader().loadLocalProperties();
+            demoCentralina = new DemoCentralina(properties);
+        }
+        return demoCentralina;
+    }
+
+    public void subscribe() throws MqttException {
+
+        this.mqttClient.setCallback(new MqttCallback() {
 
                 @Override
                 public void connectionLost(Throwable throwable) {
@@ -71,16 +90,25 @@ public class DemoCentralina {
                     return cmdFeedbackPayload;
                 }
             });
-            this.mqttClient.subscribe(topic,qos);
+
+            String codiceStazione = this.properties.getProperty(BROKER_TOPIC_CODICE_STAZIONE);
+            String gicsGatewayPhysycalId = this.properties.getProperty(BROKER_TOPIC_GICS_GATEWAY_PHYSICAL_ID);
+            String topic = String.format("LOCAL/%s/GICS/CMD/%s",codiceStazione,gicsGatewayPhysycalId);
+            this.mqttClient.subscribe(topic,0);
             System.out.println(String.format("Start subscribe topic: %s",topic));
     }
 
 
-    public static MqttAsyncClient getMqttAsyncClient() throws MqttException {
-        MqttAsyncClient mqttAsyncClient = new MqttAsyncClient(BROKER_URL,UUID.randomUUID().toString(), new MemoryPersistence());
+    private MqttAsyncClient getMqttAsyncClient() throws MqttException {
+        String brokerHost = this.properties.getProperty(BROKER_HOST);
+        int brokerPort = Integer.parseInt(this.properties.getProperty(BROKER_PORT));
+        String brokerUsername = this.properties.getProperty(BROKER_USERNAME);
+        String brokerPassword = this.properties.getProperty(BROKER_PASSWORD);
+        String brokerUrl=String.format("tcp://%s:%d",brokerHost,brokerPort);
+        MqttAsyncClient mqttAsyncClient = new MqttAsyncClient(brokerUrl,UUID.randomUUID().toString(), new MemoryPersistence());
         MqttConnectOptions connOptions = new MqttConnectOptions();
-        connOptions.setUserName(USERNAME);
-        connOptions.setPassword(PASSWORD.toCharArray());
+        connOptions.setUserName(brokerUsername);
+        connOptions.setPassword(brokerPassword.toCharArray());
         connOptions.setAutomaticReconnect(true);
         mqttAsyncClient.connect(connOptions).waitForCompletion();
         return mqttAsyncClient;
