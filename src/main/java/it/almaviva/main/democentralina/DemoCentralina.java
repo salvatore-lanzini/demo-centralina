@@ -17,6 +17,7 @@ public class DemoCentralina {
     private static final String BROKER_PASSWORD = "broker.password";
     private static final String BROKER_TOPIC_CODICE_STAZIONE = "broker.topic.codice.stazione";
     private static final String BROKER_TOPIC_GICS_GATEWAY_PHYSICAL_ID = "broker.topic.gics.gateway.physical.id";
+    private static final String HIVE_NAME_TOPIC = "hive.name.topic";
 
     private static DemoCentralina demoCentralina = null;
     private MqttAsyncClient mqttClient;
@@ -93,7 +94,8 @@ public class DemoCentralina {
 
             String codiceStazione = this.properties.getProperty(BROKER_TOPIC_CODICE_STAZIONE);
             String gicsGatewayPhysycalId = this.properties.getProperty(BROKER_TOPIC_GICS_GATEWAY_PHYSICAL_ID);
-            String topic = String.format("LOCAL/%s/GICS/CMD/%s",codiceStazione,gicsGatewayPhysycalId);
+            String hiveNameTopic = this.properties.getProperty(HIVE_NAME_TOPIC);
+            String topic = String.format("%s/%s/GICS/CMD/%s",hiveNameTopic,codiceStazione,gicsGatewayPhysycalId);
             this.mqttClient.subscribe(topic,0);
             System.out.println(String.format("Start subscribe topic: %s",topic));
     }
